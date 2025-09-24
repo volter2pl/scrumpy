@@ -1,0 +1,6 @@
+// Rename this file to `config.js` and fill in values.
+// These values are safe to expose in the client.
+window.ENV = {
+  SUPABASE_URL: "",
+  SUPABASE_ANON_KEY: ""
+};

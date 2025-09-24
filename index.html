@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Scrumpy</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="container row space-between center">
+        <div class="brand">🍏 Scrumpy</div>
+        <div id="roomHeader" class="room-header" hidden>
+          <input id="roomIdInput" class="room-id" readonly />
+          <button id="copyRoomBtn" class="secondary">Kopiuj numer</button>
+          <button id="copyLinkBtn" class="secondary">Kopiuj link</button>
+          <button id="exitBtn" class="link">Wyjdź</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <!-- Home View -->
+      <section id="homeView">
+        <div class="grid">
+          <article>
+            <h2>Utwórz pokój</h2>
+            <form id="createForm">
+              <label>
+                Imię
+                <input id="createName" name="name" autocomplete="name" required minlength="1" maxlength="40" />
+              </label>
+              <button type="submit">Utwórz pokój</button>
+            </form>
+          </article>
+          <article>
+            <h2>Dołącz do pokoju</h2>
+            <form id="joinForm">
+              <label>
+                ID pokoju
+                <input id="joinUuid" name="uuid" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" required />
+              </label>
+              <label>
+                Imię
+                <input id="joinName" name="name" autocomplete="name" required minlength="1" maxlength="40" />
+              </label>
+              <button type="submit">Dołącz</button>
+            </form>
+          </article>
+        </div>
+      </section>
+
+      <!-- Room View -->
+      <section id="roomView" hidden>
+        <div id="overlay" class="overlay" hidden>
+          <div class="overlay-box">
+            <div class="spinner" aria-hidden="true"></div>
+            <div id="overlayMsg" class="overlay-msg">Łączenie…</div>
+            <small class="overlay-hint">Lista uczestników i karty mogą być nieaktualne. Zaczekaj na połączenie.</small>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="row space-between center wrap">
+            <div class="status">
+              <span id="connStatus" class="badge">Rozłączono</span>
+            </div>
+            <div class="controls row gap">
+              <button id="revealBtn" class="primary">Pokaż</button>
+              <button id="clearBtn" class="secondary">Wyczyść</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Wybierz kartę</h3>
+          <div id="deck" class="deck"></div>
+        </div>
+
+        <div class="panel">
+          <h3>Uczestnicy</h3>
+          <div id="participants" class="participants"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <div class="container">
+        <small>
+          © 2025 Szymon Maciejewski · 
+          <a href="https://github.com/volter2pl/scrumpy" target="_blank" rel="noopener">GitHub</a> · 
+          <a href="./LICENSE" target="_blank" rel="noopener">Apache 2.0 license</a>
+        </small>
+      </div>
+      <button id="themeToggleBtn" class="secondary">🌙 / ☀️</button>
+    </footer>
+
+    <script src="config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@^2/dist/umd/supabase.js"></script>
+    <script src="index.js"></script>
+  </body>
+  </html>
