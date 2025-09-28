@@ -7,7 +7,7 @@ Scrumpy to lekka aplikacja do estymacji w stylu Planning Poker. Działa w pełni
 ## Funkcje
 - Tworzenie pokoju i dołączanie po UUID (link z hashem).
 - Lista uczestników na żywo (presence), sygnalizacja oddanych głosów.
-- Talia: [?, 0, 1, 2, 3, 5, 8, 13].
+- Talia: wybór z listy lub własna talia kart.
 - Odsłanianie „Pokaż” i reset „Wyczyść” (z potwierdzeniem).
 - Zmiana głosu także po odsłonięciu (brak historii).
 - Konfetti przy pełnej zgodności po odsłonięciu.
@@ -15,7 +15,7 @@ Scrumpy to lekka aplikacja do estymacji w stylu Planning Poker. Działa w pełni
 
 ## Szybki start (lokalnie)
 1) Skopiuj `config.js.example` do `config.js` i uzupełnij wartości Supabase.
-2) Uruchom serwer statyczny, np.: `python -m http.server` i otwórz stronę.
+2) Uruchom index.html w przeglądarce.
 
 ## Deploy na GitHub Pages (bez commitowania config.js)
 Ustaw sekrety repo: `SUPABASE_URL`, `SUPABASE_ANON_KEY`. Workflow `.github/workflows/pages.yml` wygeneruje `dist/config.js` i opublikuje stronę przez GitHub Actions. Włącz Pages: Settings → Pages → Source: GitHub Actions.

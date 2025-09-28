@@ -79,6 +79,8 @@ article, .panel { background: var(--card); border: 1px solid var(--border); bord
 label { display: block; margin: 8px 0; }
 input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--fg); }
 input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+select { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--fg); }
+select:focus { outline: 2px solid var(--accent); border-color: transparent; }
 
 button {
   appearance: none; border: 1px solid var(--border); background: var(--button-bg); color: var(--fg);
@@ -90,11 +92,20 @@ button.primary { background: var(--accent); border-color: transparent; color: #0
 button.secondary { border-color: var(--accent); color: var(--accent); background: transparent; }
 button.link { border: none; background: transparent; color: var(--muted); text-decoration: underline; padding: 6px 4px; }
 button[disabled] { opacity: .6; cursor: not-allowed; }
+button.small { padding: 6px 10px; font-size: .9rem; }
 
 .badge { display: inline-block; cursor: default; padding: 4px 8px; border-radius: 999px; background: var(--badge-bg); border: 1px solid var(--border); color: var(--muted); }
 .badge.ok { color: #0a0c10; background: var(--success); border-color: var(--success); }
 .badge.warn { color: #0a0c10; background: var(--warn); border-color: var(--warn); }
 .badge.err { color: #0a0c10; background: var(--danger); border-color: var(--danger); }
+
+.deck-controls { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin: 4px 0 12px; }
+.field-hint { color: var(--muted); display: block; }
+
+.custom-deck-list { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 16px; }
+.custom-card-row { display: flex; gap: 8px; align-items: center; }
+.custom-card-row input { flex: 1; }
+.remove-card-btn { white-space: nowrap; }
 
 .participants { display: flex; flex-direction: column; gap: 8px; }
 .participant { background: var(--input-bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; }

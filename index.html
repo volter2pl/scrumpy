@@ -30,6 +30,13 @@
                 Imię
                 <input id="createName" name="name" autocomplete="name" required minlength="1" maxlength="40" />
               </label>
+              <label>
+                Talia kart
+                <select id="createDeck" name="deck"></select>
+              </label>
+              <div class="deck-controls">
+                <small id="deckPreview" class="field-hint"></small>
+              </div>
               <button type="submit">Utwórz pokój</button>
             </form>
           </article>
@@ -48,6 +55,17 @@
             </form>
           </article>
         </div>
+        <article id="customDeckEditor" hidden>
+          <h2>Twoja talia custom</h2>
+          <form id="customDeckForm">
+            <div id="customDeckList" class="custom-deck-list"></div>
+            <div class="deck-controls">
+              <button id="addCustomCardBtn" type="button" class="secondary small">Dodaj kartę</button>
+              <button id="saveCustomDeckBtn" type="submit" class="primary small">Zapisz</button>
+            </div>
+          </form>
+          <small class="field-hint">Minimum dwie karty. Wartość może być dowolnym znakiem UTF-8.</small>
+        </article>
       </section>
 
       <!-- Room View -->

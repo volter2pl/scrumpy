@@ -37,7 +37,7 @@ Zmiany statusu (wejście/wyjście/aktualizacja) są widoczne w czasie rzeczywist
   - Payload: `{ by: userId }` (opcjonalnie).
   - Efekt: klienci resetują lokalne głosy i ustawiają `hasVoted=false` w presence; stan „hidden”.
 - `user_vote` — publikacja wartości głosu użytkownika:
-  - Payload: `{ userId: string, value: ?|0|1|2|3|5|8|13 }`.
+  - Payload: `{ userId: string, value: ?|0|1|2|3|5|8 }` - gdzie value to wartość karty z talii danego pokoju.
   - Wysyłane po `reveal` oraz przy każdej późniejszej zmianie karty w stanie „revealed”.
   - Przed `reveal` wartości głosu nie są wysyłane (tylko flaga `hasVoted` w presence).
 
@@ -55,7 +55,7 @@ Ta sekcja wyłącznie opisuje kontrakt wymiany zdarzeń. Implementacja UI/klient
 
 ## Walidacja i ograniczenia
 - Imię: 1–40 znaków, dowolny UTF‑8; zalecane przycięcie spacji i normalizacja (NFC).
-- Głos: dozwolone tylko wartości z zestawu `[?,0,1,2,3,5,8,13]`.
+- Głos: dozwolone tylko wartości z talii np. `[?,0,1,2,3,5,8]`.
 - Throttling po kliencie: zalecenie ograniczenia tempa wysyłki broadcastów (np. ≤ 5 zdarzeń/sek/sesję) – redukcja spamu i kosztów.
 
 ## Bezpieczeństwo i prywatność

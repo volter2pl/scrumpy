@@ -18,7 +18,7 @@ Aplikacja webowa do estymacji w stylu Planning Poker. Użytkownicy tworzą lub d
   - Po kliknięciu „Utwórz” lub „Dołącz” użytkownik podaje imię (wymagane, min. 1 znak, dowolny UTF-8; wyświetlane pozostałym).
 - Widok pokoju:
   - Lista uczestników z aktualizacją w czasie rzeczywistym (dołączanie/opuszczanie).
-  - Wybór karty: każdy uczestnik może wybrać jedną kartę z zestawu [?, 0, 1, 2, 3, 5, 8, 13].
+  - Wybór karty: każdy uczestnik może wybrać jedną kartę z talii.
   - Sygnalizacja oddania głosu: przy uczestniku, który zagłosował, pojawia się ikonka/znacznik informujący, że głos został oddany; wartość karty pozostaje ukryta do momentu odsłonięcia.
   - Publikacja w czasie rzeczywistym: informacje o oddaniu, zmianie lub usunięciu głosu są propagowane do wszystkich uczestników pokoju.
   - Odsłanianie głosów: dowolny uczestnik może użyć akcji „pokaż” (z potwierdzeniem „czy na pewno?”), co zmienia stan pokoju na „odkryte” i ujawnia wartości wszystkich oddanych głosów jednocześnie.
@@ -26,6 +26,8 @@ Aplikacja webowa do estymacji w stylu Planning Poker. Użytkownicy tworzą lub d
 
 ## Reguły biznesowe i zachowanie
 - Zestaw kart: dokładnie [?, 0, 1, 2, 3, 5, 8, 13]; brak innych wartości.
+- ~~Zestaw kart: dokładnie [?, 0, 1, 2, 3, 5, 8, 13]; brak innych wartości.~~
+- Dostępne są różne talie do wyboru lub własna.
 - Jeden głos na uczestnika: w danym momencie uczestnik ma co najwyżej jedną wybraną kartę; zmiana wyboru nadpisuje poprzedni.
 - Widoczność głosów:
   - W stanie „ukryte” widoczny jest tylko fakt oddania głosu (ikonka), nie jego wartość.
