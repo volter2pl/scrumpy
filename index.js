@@ -182,20 +182,33 @@
     state.deck = next;
     allowedValues = next.cards.slice();
     state.myVote = deckIncludesValue(state.myVote) ? String(state.myVote) : null;
+    let votesChanged = false;
     state.votes.forEach((val, key) => {
       if (!deckIncludesValue(val)) {
         state.votes.delete(key);
+        votesChanged = true;
       } else {
-        state.votes.set(key, String(val));
+        const normalized = String(val);
+        if (state.votes.get(key) !== normalized) {
+          state.votes.set(key, normalized);
+          votesChanged = true;
+        }
       }
     });
     renderDeck();
     renderParticipants();
+    if (votesChanged) emitStateUpdated('votes-trimmed');
   };
 
   const deckIncludesValue = (value) => {
     if (value == null) return false;
     return allowedValues.includes(String(value));
+  };
+
+  const STATE_UPDATED_EVENT = 'state-updated';
+  const stateEvents = new EventTarget();
+  const emitStateUpdated = (reason) => {
+    stateEvents.dispatchEvent(new CustomEvent(STATE_UPDATED_EVENT, { detail: { reason } }));
   };
 
   const buildPresencePayload = (overrides = {}) => {
@@ -361,6 +374,7 @@
     myVote: null,
     deck: null,
     customDeck: null,
+    consensusCelebrated: false,
     lastDeckId: null,
     pendingRoomDeck: null,
     presence: new Map(), // userId -> { name, hasVoted }
@@ -416,9 +430,11 @@
   }
 
   function setPhase(phase) {
+    const changed = state.phase !== phase;
     state.phase = phase;
     renderDeck();
     renderParticipants();
+    if (changed) emitStateUpdated('phase');
   }
 
   function renderOverlay() {
@@ -437,24 +453,32 @@
     setTimeout(() => window.confetti({ particleCount: 100, spread: 100, origin: { x: 1, y: 0.6 } }), 220);
   }
 
-  function checkConsensusAndCelebrate() {
+  function checkConsensusAndCelebrate(event) {
+    const reason = event?.detail?.reason;
+    if (reason === 'clear') return;
     if (state.phase !== 'revealed' || state.consensusCelebrated) return;
     const values = [];
+    let missingValue = false;
     state.presence.forEach((meta, userId) => {
       if (!meta || !meta.hasVoted) return;
       const incoming = deckIncludesValue(meta.value) ? String(meta.value) : null;
       const val = state.votes.get(userId) ?? incoming;
-      if (val != null) values.push(String(val));
+      if (val == null) {
+        missingValue = true;
+        return;
+      }
+      values.push(String(val));
     });
+    if (missingValue) return;
     const minConsensusCount = 2;
     if (values.length < minConsensusCount) return;
     const first = values[0];
     const allEqual = values.every(v => v === first);
-    if (allEqual) {
-      state.consensusCelebrated = true;
-      celebrate();
-    }
+    if (!allEqual) return;
+    state.consensusCelebrated = true;
+    celebrate();
   }
+  stateEvents.addEventListener(STATE_UPDATED_EVENT, checkConsensusAndCelebrate);
 
   async function connectRoom(roomUuid) {
     const client = ensureSupabase();
@@ -514,9 +538,11 @@
       const newPhase = anyRevealed ? 'revealed' : 'hidden';
       if (newPhase !== state.phase) setPhase(newPhase);
       renderParticipants();
+      emitStateUpdated('presence-sync');
     });
 
     channel.on('broadcast', { event: 'reveal' }, () => {
+      state.consensusCelebrated = false;
       setPhase('revealed');
       if (state.myVote != null) {
         sendUserVote(state.myVote);
@@ -524,17 +550,16 @@
       // also publish phase and (optional) value in presence, so late joiners see votes
       const payload = buildPresencePayload({ hasVoted: state.myVote != null, phase: 'revealed', value: state.myVote ?? null });
       state.channel && state.channel.track(payload).catch(() => {});
-      setTimeout(checkConsensusAndCelebrate, 50);
     });
 
     channel.on('broadcast', { event: 'clear' }, () => {
       state.votes.clear();
       state.myVote = null;
-      state.consensusCelebrated = false;
       setPhase('hidden');
       // update presence to hasVoted=false
       const payload = buildPresencePayload({ hasVoted: false, phase: 'hidden', value: null });
       channel.track(payload).catch(() => {});
+      emitStateUpdated('clear');
     });
 
     channel.on('broadcast', { event: 'user_vote' }, (payload) => {
@@ -544,7 +569,7 @@
       if (!deckIncludesValue(value)) return;
       state.votes.set(userId, String(value));
       renderParticipants();
-      checkConsensusAndCelebrate();
+      emitStateUpdated('vote');
     });
 
     setConnStatus(CONNECTING);
@@ -673,6 +698,7 @@
     state.votes.clear();
     state.presence.clear();
     state.consensusCelebrated = false;
+    emitStateUpdated('room-reset');
     const deckForRoom = resolveDeckForRoom(roomUuid);
     setActiveDeck(deckForRoom);
     setPhase('hidden');
