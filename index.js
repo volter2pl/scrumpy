@@ -616,7 +616,7 @@
 
   function checkConsensusAndCelebrate(event) {
     const reason = event?.detail?.reason;
-    if (reason === 'clear') return;
+    if (reason !== 'reveal' && reason !== 'vote') return;
     if (state.phase !== 'revealed' || state.consensusCelebrated) return;
     const values = [];
     let missingValue = false;
@@ -711,6 +711,7 @@
       }
       // also publish phase and (optional) value in presence, so late joiners see votes
       trackPresence({ hasVoted: state.myVote != null, phase: 'revealed', value: state.myVote ?? null }, { force: true });
+      emitStateUpdated('reveal');
     });
 
     channel.on('broadcast', { event: 'clear' }, () => {
