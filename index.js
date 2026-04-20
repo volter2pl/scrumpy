@@ -19,6 +19,8 @@
   const LAST_DECK_KEY = 'scrumpy_last_deck_v1';
   const CUSTOM_DECK_KEY = 'scrumpy_custom_deck_v1';
   const ROOM_DECK_PREFIX = 'scrumpy_room_deck_';
+  const ROOM_OBSERVER_PREFIX = 'scrumpy_room_observer_';
+  const OBSERVER_CARD_TEXT = '👁';
 
   const builtinDecks = [
     {
@@ -89,6 +91,7 @@
   };
 
   const deckKeyForRoom = (uuid) => `${ROOM_DECK_PREFIX}${uuid}`;
+  const observerKeyForRoom = (uuid) => `${ROOM_OBSERVER_PREFIX}${uuid}`;
 
   const loadCustomDeck = () => {
     const raw = readJSON(localStorage, CUSTOM_DECK_KEY, null);
@@ -142,6 +145,22 @@
       name: deck.name,
       cards: deck.cards
     });
+  };
+
+  const loadRoomObserverState = (uuid) => {
+    if (!uuid) return false;
+    return readJSON(localStorage, observerKeyForRoom(uuid), false) === true;
+  };
+
+  const persistRoomObserverState = (uuid, isObserver) => {
+    if (!uuid) return;
+    if (isObserver) {
+      writeJSON(localStorage, observerKeyForRoom(uuid), true);
+      return;
+    }
+    try {
+      localStorage.removeItem(observerKeyForRoom(uuid));
+    } catch (e) {}
   };
 
   const findBuiltinDeck = (id) => builtinDecks.find((d) => d.id === id) || null;
@@ -216,6 +235,7 @@
     const base = {
       userId: state.sessionId,
       name: state.myName,
+      isObserver: !!state.isObserver,
       hasVoted: false,
       phase: 'hidden',
       value: null,
@@ -224,9 +244,27 @@
       deckValues: deck.cards
     };
     const payload = Object.assign(base, overrides || {});
-    payload.value = payload.value != null ? String(payload.value) : null;
+    payload.isObserver = !!payload.isObserver;
+    payload.hasVoted = payload.isObserver ? false : !!payload.hasVoted;
+    payload.value = payload.isObserver ? null : (payload.value != null ? String(payload.value) : null);
     return payload;
   };
+
+  const participantHasActiveVote = (meta) => {
+    return !!meta && !meta.isObserver && !!meta.hasVoted;
+  };
+
+  const getPresenceSignature = (payload) => JSON.stringify({
+    userId: payload.userId || null,
+    name: payload.name || null,
+    isObserver: !!payload.isObserver,
+    hasVoted: !!payload.hasVoted,
+    phase: payload.phase || 'hidden',
+    value: payload.value != null ? String(payload.value) : null,
+    deckId: payload.deckId || null,
+    deckName: payload.deckName || null,
+    deckValues: Array.isArray(payload.deckValues) ? payload.deckValues : []
+  });
 
   const getDeckPreviewText = (deck) => {
     if (!deckHasCards(deck)) return 'Brak kart w tej talii';
@@ -372,12 +410,17 @@
     roomUuid: null,
     phase: 'hidden',
     myVote: null,
+    isObserver: false,
     deck: null,
     customDeck: null,
     consensusCelebrated: false,
     lastDeckId: null,
     pendingRoomDeck: null,
-    presence: new Map(), // userId -> { name, hasVoted }
+    lastTrackedPresenceSignature: null,
+    pendingPresenceSignature: null,
+    pendingPresencePayload: null,
+    presenceTrackTimer: null,
+    presence: new Map(), // userId -> { name, hasVoted, isObserver }
     votes: new Map() // userId -> value (only after reveal)
   };
 
@@ -429,6 +472,52 @@
     if (overlayMsg) overlayMsg.textContent = status.desc || status.text;
   }
 
+  function clearPendingPresenceTrack() {
+    if (state.presenceTrackTimer) {
+      clearTimeout(state.presenceTrackTimer);
+      state.presenceTrackTimer = null;
+    }
+    state.pendingPresenceSignature = null;
+    state.pendingPresencePayload = null;
+  }
+
+  function trackPresence(overrides = {}, options = {}) {
+    const { force = false, debounceMs = 0 } = options;
+    if (!state.channel) return;
+
+    const payload = buildPresencePayload(overrides);
+    const signature = getPresenceSignature(payload);
+    const isDuplicate = !force && (
+      signature === state.lastTrackedPresenceSignature ||
+      signature === state.pendingPresenceSignature
+    );
+
+    if (isDuplicate) return;
+
+    const flush = () => {
+      const nextPayload = state.pendingPresencePayload;
+      const nextSignature = state.pendingPresenceSignature;
+      state.presenceTrackTimer = null;
+      state.pendingPresencePayload = null;
+      state.pendingPresenceSignature = null;
+      if (!nextPayload || !state.channel) return;
+      state.channel.track(nextPayload).then(() => {
+        state.lastTrackedPresenceSignature = nextSignature;
+      }).catch(() => {});
+    };
+
+    clearPendingPresenceTrack();
+    state.pendingPresencePayload = payload;
+    state.pendingPresenceSignature = signature;
+
+    if (debounceMs > 0) {
+      state.presenceTrackTimer = setTimeout(flush, debounceMs);
+      return;
+    }
+
+    flush();
+  }
+
   function setPhase(phase) {
     const changed = state.phase !== phase;
     state.phase = phase;
@@ -460,7 +549,7 @@
     const values = [];
     let missingValue = false;
     state.presence.forEach((meta, userId) => {
-      if (!meta || !meta.hasVoted) return;
+      if (!participantHasActiveVote(meta)) return;
       const incoming = deckIncludesValue(meta.value) ? String(meta.value) : null;
       const val = state.votes.get(userId) ?? incoming;
       if (val == null) {
@@ -520,20 +609,21 @@
         const candidateValue = meta.value != null ? String(meta.value) : null;
         const baseValues = deckValues && deckValues.length ? deckValues : allowedValues;
         const value = candidateValue && baseValues.includes(candidateValue) ? candidateValue : null;
+        const isObserver = !!meta.isObserver;
+        const hasVoted = !isObserver && !!meta.hasVoted;
 
-        next.set(userId, { name: meta.name, hasVoted: !!meta.hasVoted, value, phase });
+        next.set(userId, { name: meta.name, hasVoted, value: hasVoted ? value : null, phase, isObserver });
       });
 
       state.presence = next;
       if (discoveredDeck && !decksEqual(discoveredDeck, state.deck)) {
         setActiveDeck(discoveredDeck);
         if (state.roomUuid) persistRoomDeck(state.roomUuid, discoveredDeck);
-        const presencePayload = buildPresencePayload({
+        trackPresence({
           hasVoted: state.myVote != null,
           phase: state.phase,
           value: state.phase === 'revealed' ? state.myVote : null
         });
-        channel.track(presencePayload).catch(() => {});
       }
       const newPhase = anyRevealed ? 'revealed' : 'hidden';
       if (newPhase !== state.phase) setPhase(newPhase);
@@ -548,8 +638,7 @@
         sendUserVote(state.myVote);
       }
       // also publish phase and (optional) value in presence, so late joiners see votes
-      const payload = buildPresencePayload({ hasVoted: state.myVote != null, phase: 'revealed', value: state.myVote ?? null });
-      state.channel && state.channel.track(payload).catch(() => {});
+      trackPresence({ hasVoted: state.myVote != null, phase: 'revealed', value: state.myVote ?? null }, { force: true });
     });
 
     channel.on('broadcast', { event: 'clear' }, () => {
@@ -557,8 +646,7 @@
       state.myVote = null;
       setPhase('hidden');
       // update presence to hasVoted=false
-      const payload = buildPresencePayload({ hasVoted: false, phase: 'hidden', value: null });
-      channel.track(payload).catch(() => {});
+      trackPresence({ hasVoted: false, phase: 'hidden', value: null }, { force: true });
       emitStateUpdated('clear');
     });
 
@@ -583,7 +671,9 @@
         setConnStatus(CONNECTED);
         renderOverlay();
         try {
-          await channel.track(buildPresencePayload());
+          state.lastTrackedPresenceSignature = null;
+          clearPendingPresenceTrack();
+          trackPresence({}, { force: true });
         } catch (e) {}
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
         state.connected = false;
@@ -594,6 +684,8 @@
   }
 
   function cleanupChannel() {
+    clearPendingPresenceTrack();
+    state.lastTrackedPresenceSignature = null;
     if (state.channel) {
       try { state.channel.unsubscribe(); } catch (e) {}
     }
@@ -609,14 +701,32 @@
   }
 
   function sendUserVote(value) {
+    if (state.isObserver) return;
     if (!deckIncludesValue(value)) return;
     sendBroadcast('user_vote', { userId: state.sessionId, value: String(value) });
+  }
+
+  function setObserverMode(isObserver) {
+    const next = !!isObserver;
+    state.isObserver = next;
+    persistRoomObserverState(state.roomUuid, next);
+    if (next) state.myVote = null;
+    trackPresence({
+      isObserver: next,
+      hasVoted: false,
+      phase: state.phase,
+      value: null
+    }, { force: true });
+    renderDeck();
+    renderParticipants();
   }
 
   // --- Rendering ---
   function renderParticipants() {
     const phase = state.phase;
-    const list = Array.from(state.presence.entries()).map(([userId, meta]) => ({ userId, ...meta }));
+    const list = Array.from(state.presence.entries())
+      .map(([userId, meta]) => ({ userId, ...meta }))
+      .filter((participant) => !participant.isObserver);
     list.sort((a, b) => a.name.localeCompare(b.name, 'pl'));
 
     participantsEl.innerHTML = '';
@@ -628,7 +738,10 @@
       title.textContent = p.name || '(bezimienny)';
       const card = document.createElement('div');
       const resolvedValue = deckIncludesValue(p.value) ? String(p.value) : null;
-      const val = state.phase === 'revealed' ? (state.votes.get(p.userId) ?? resolvedValue) : (p.hasVoted ? VOTED : UNVOTED);
+      const hasVoted = participantHasActiveVote(p);
+      const val = state.phase === 'revealed'
+        ? (hasVoted ? (state.votes.get(p.userId) ?? resolvedValue) : UNVOTED)
+        : (hasVoted ? VOTED : UNVOTED);
       card.className = `mini-card ${state.phase === 'revealed' ? 'revealed' : 'hidden'}`;
       card.textContent = val == null ? UNVOTED : String(val);
       item.appendChild(title);
@@ -639,12 +752,22 @@
 
   function renderDeck() {
     deckEl.innerHTML = '';
+    const observerBtn = document.createElement('button');
+    observerBtn.type = 'button';
+    observerBtn.className = 'card-btn technical-card';
+    observerBtn.textContent = OBSERVER_CARD_TEXT;
+    observerBtn.title = state.isObserver ? 'Wróć do głosowania' : 'Nie biorę udziału w głosowaniu';
+    observerBtn.setAttribute('aria-label', observerBtn.title);
+    if (state.isObserver) observerBtn.classList.add('active');
+    observerBtn.addEventListener('click', () => setObserverMode(!state.isObserver));
+    deckEl.appendChild(observerBtn);
+
     for (const v of allowedValues) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'card-btn';
       btn.textContent = String(v);
-      if (state.myVote === v) btn.classList.add('active');
+      if (!state.isObserver && state.myVote === v) btn.classList.add('active');
       btn.addEventListener('click', () => onSelectCard(v));
       deckEl.appendChild(btn);
     }
@@ -653,14 +776,18 @@
   function onSelectCard(value) {
     if (!deckIncludesValue(value)) return;
     const cardValue = String(value);
-    state.myVote = cardValue;
-    if (state.channel) {
-      // Mark hasVoted in presence; when revealed include value and phase for late joiners
-      const payload = state.phase === 'revealed'
-        ? buildPresencePayload({ hasVoted: true, phase: 'revealed', value: cardValue })
-        : buildPresencePayload({ hasVoted: true, phase: 'hidden', value: null });
-      state.channel.track(payload).catch(() => {});
+    if (state.isObserver) {
+      state.isObserver = false;
+      persistRoomObserverState(state.roomUuid, false);
     }
+    state.myVote = cardValue;
+    // In hidden mode only the first vote changes shared state; in revealed mode debounce presence updates.
+    trackPresence(
+      state.phase === 'revealed'
+        ? { isObserver: false, hasVoted: true, phase: 'revealed', value: cardValue }
+        : { isObserver: false, hasVoted: true, phase: 'hidden', value: null },
+      state.phase === 'revealed' ? { debounceMs: 250 } : {}
+    );
     if (state.phase === 'revealed') {
       sendUserVote(cardValue);
     }
@@ -695,6 +822,8 @@
   async function enterRoom(roomUuid, name) {
     state.roomUuid = roomUuid;
     state.myName = name;
+    state.myVote = null;
+    state.isObserver = loadRoomObserverState(roomUuid);
     state.votes.clear();
     state.presence.clear();
     state.consensusCelebrated = false;

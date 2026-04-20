@@ -128,6 +128,8 @@ button.small { padding: 6px 10px; font-size: .9rem; }
 .deck { display: grid; grid-template-columns: repeat(8, minmax(48px, 1fr)); gap: 8px; }
 .card-btn { padding: 14px 0; font-weight: 500; font-size: large; }
 .card-btn.active { outline: 2px solid var(--accent); }
+.card-btn.technical-card { font-size: 1.35rem; }
+.card-btn.technical-card.active { outline-color: var(--accent-2); }
 
 @media (max-width: 560px) {
   .deck { grid-template-columns: repeat(4, minmax(48px, 1fr)); }
