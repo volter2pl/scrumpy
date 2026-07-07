@@ -24,7 +24,8 @@ jobs:
       - name: Prepare static site
         run: |
           mkdir -p dist
-          cp index.html styles.css index.js LICENSE dist/
+          cp index.html styles.css index.js LICENSE manifest.webmanifest service-worker.js dist/
+          cp -R icons dist/
           # Inject runtime config from repository secrets
           cat > dist/config.js << 'EOF'
           window.ENV = {

@@ -20,6 +20,7 @@
   const CUSTOM_DECK_KEY = 'scrumpy_custom_deck_v1';
   const ROOM_DECK_PREFIX = 'scrumpy_room_deck_';
   const ROOM_OBSERVER_PREFIX = 'scrumpy_room_observer_';
+  const FAVORITE_ROOMS_KEY = 'scrumpy_favorite_rooms_v1';
   const OBSERVER_CARD_TEXT = '👁';
 
   const builtinDecks = [
@@ -161,6 +162,73 @@
     try {
       localStorage.removeItem(observerKeyForRoom(uuid));
     } catch (e) {}
+  };
+
+
+  const fallbackRoomAlias = (uuid) => `Pokój ${String(uuid || '').slice(0, 8)}`;
+
+  const normalizeFavoriteAlias = (alias, uuid) => {
+    const value = trim(normalizeName(String(alias || ''))).slice(0, 80);
+    return value || fallbackRoomAlias(uuid);
+  };
+
+  const normalizeFavoriteUserName = (name) => {
+    const value = trim(normalizeName(String(name || ''))).slice(0, 40);
+    return value.length >= 1 ? value : '';
+  };
+
+  const loadFavoriteRooms = () => {
+    const raw = readJSON(localStorage, FAVORITE_ROOMS_KEY, []);
+    if (!Array.isArray(raw)) return [];
+    const seen = new Set();
+    const rooms = [];
+    raw.forEach((item) => {
+      const uuid = String(item && item.uuid || '').trim();
+      const userName = normalizeFavoriteUserName(item && item.userName);
+      if (!uuidV4Re.test(uuid) || !userName || seen.has(uuid)) return;
+      seen.add(uuid);
+      rooms.push({
+        uuid,
+        alias: normalizeFavoriteAlias(item.alias, uuid),
+        userName,
+        createdAt: Number(item.createdAt) || Date.now(),
+        updatedAt: Number(item.updatedAt) || Number(item.createdAt) || Date.now()
+      });
+    });
+    return rooms;
+  };
+
+  const saveFavoriteRooms = (rooms) => {
+    writeJSON(localStorage, FAVORITE_ROOMS_KEY, rooms);
+  };
+
+  const findFavoriteRoom = (uuid) => {
+    if (!uuid) return null;
+    return loadFavoriteRooms().find((room) => room.uuid === uuid) || null;
+  };
+
+  const upsertFavoriteRoom = (uuid, alias, userName) => {
+    if (!uuidV4Re.test(String(uuid || ''))) return null;
+    const rooms = loadFavoriteRooms();
+    const now = Date.now();
+    const nextAlias = normalizeFavoriteAlias(alias, uuid);
+    const nextUserName = normalizeFavoriteUserName(userName);
+    if (!nextUserName) return null;
+    const existing = rooms.find((room) => room.uuid === uuid);
+    if (existing) {
+      existing.alias = nextAlias;
+      if (nextUserName) existing.userName = nextUserName;
+      existing.updatedAt = now;
+    } else {
+      rooms.unshift({ uuid, alias: nextAlias, userName: nextUserName, createdAt: now, updatedAt: now });
+    }
+    saveFavoriteRooms(rooms);
+    return rooms.find((room) => room.uuid === uuid) || null;
+  };
+
+  const removeFavoriteRoom = (uuid) => {
+    const rooms = loadFavoriteRooms().filter((room) => room.uuid !== uuid);
+    saveFavoriteRooms(rooms);
   };
 
   const findBuiltinDeck = (id) => builtinDecks.find((d) => d.id === id) || null;
@@ -431,6 +499,7 @@
   const roomIdInput = byId('roomIdInput');
   const copyLinkBtn = byId('copyLinkBtn');
   const copyRoomBtn = byId('copyRoomBtn');
+  const favoriteRoomBtn = byId('favoriteRoomBtn');
   const exitBtn = byId('exitBtn');
   const connStatus = byId('connStatus');
   const overlay = byId('overlay');
@@ -452,6 +521,9 @@
   const customDeckForm = byId('customDeckForm');
   const customDeckList = byId('customDeckList');
   const addCustomCardBtn = byId('addCustomCardBtn');
+  const favoritesPanel = byId('favoritesPanel');
+  const favoritesList = byId('favoritesList');
+  const clearFavoritesBtn = byId('clearFavoritesBtn');
 
   // --- Supabase ---
   function ensureSupabase() {
@@ -722,6 +794,81 @@
   }
 
   // --- Rendering ---
+  function updateFavoriteRoomButton() {
+    if (!favoriteRoomBtn) return;
+    const favorite = findFavoriteRoom(state.roomUuid);
+    favoriteRoomBtn.textContent = favorite ? 'Zmień alias' : 'Dodaj do ulubionych';
+    favoriteRoomBtn.title = favorite ? `Ulubiony jako: ${favorite.alias}` : 'Dodaj aktualny pokój do ulubionych';
+  }
+
+  function renderFavorites() {
+    if (!favoritesPanel || !favoritesList) return;
+    const rooms = loadFavoriteRooms();
+    favoritesPanel.hidden = rooms.length === 0;
+    favoritesList.innerHTML = '';
+    if (clearFavoritesBtn) clearFavoritesBtn.hidden = rooms.length === 0;
+
+    rooms.forEach((room) => {
+      const item = document.createElement('div');
+      item.className = 'favorite-item';
+
+      const details = document.createElement('div');
+      details.className = 'favorite-details';
+      const alias = document.createElement('strong');
+      alias.textContent = room.alias;
+      const uuid = document.createElement('small');
+      uuid.textContent = room.uuid;
+      details.appendChild(alias);
+      const userName = document.createElement('small');
+      userName.textContent = `Imię: ${room.userName}`;
+      details.appendChild(userName);
+      details.appendChild(uuid);
+
+      const actions = document.createElement('div');
+      actions.className = 'favorite-actions row gap wrap';
+
+      const joinBtn = document.createElement('button');
+      joinBtn.type = 'button';
+      joinBtn.className = 'primary small';
+      joinBtn.textContent = 'Dołącz';
+      joinBtn.addEventListener('click', () => {
+        state.myName = room.userName;
+        sessionStorage.setItem('scrumpo_name', room.userName);
+        state.pendingRoomDeck = null;
+        window.location.hash = `#/room/${room.uuid}`;
+      });
+
+      const renameBtn = document.createElement('button');
+      renameBtn.type = 'button';
+      renameBtn.className = 'secondary small';
+      renameBtn.textContent = 'Alias';
+      renameBtn.addEventListener('click', () => {
+        const aliasValue = prompt('Alias pokoju:', room.alias);
+        if (aliasValue == null) return;
+        upsertFavoriteRoom(room.uuid, aliasValue, room.userName);
+        renderFavorites();
+        updateFavoriteRoomButton();
+      });
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'secondary small';
+      removeBtn.textContent = 'Usuń';
+      removeBtn.addEventListener('click', () => {
+        removeFavoriteRoom(room.uuid);
+        renderFavorites();
+        updateFavoriteRoomButton();
+      });
+
+      actions.appendChild(joinBtn);
+      actions.appendChild(renameBtn);
+      actions.appendChild(removeBtn);
+      item.appendChild(details);
+      item.appendChild(actions);
+      favoritesList.appendChild(item);
+    });
+  }
+
   function renderParticipants() {
     const phase = state.phase;
     const list = Array.from(state.presence.entries())
@@ -807,6 +954,7 @@
     } else {
       closeCustomDeckEditor();
     }
+    renderFavorites();
   }
 
   function showRoom() {
@@ -817,6 +965,7 @@
     renderDeck();
     renderParticipants();
     renderOverlay();
+    updateFavoriteRoomButton();
   }
 
   async function enterRoom(roomUuid, name) {
@@ -855,8 +1004,9 @@
       showHome();
       return;
     }
-    // Require name: if not provided, prompt using a simple modal-less prompt.
-    let name = state.myName || sessionStorage.getItem('scrumpo_name') || '';
+    // Require name: use the favorite room name when available, otherwise prompt.
+    const favorite = findFavoriteRoom(parsed.roomUuid);
+    let name = (favorite && favorite.userName) || state.myName || sessionStorage.getItem('scrumpo_name') || '';
     if (!name) {
       name = prompt('Podaj imię:') || '';
       name = trim(normalizeName(name));
@@ -866,6 +1016,9 @@
         return;
       }
       sessionStorage.setItem('scrumpo_name', name);
+    } else {
+      name = normalizeFavoriteUserName(name);
+      if (name) sessionStorage.setItem('scrumpo_name', name);
     }
     await enterRoom(parsed.roomUuid, name);
   }
@@ -958,6 +1111,27 @@
     window.location.hash = `#/room/${uuid}`;
   });
 
+  if (favoriteRoomBtn) {
+    favoriteRoomBtn.addEventListener('click', () => {
+      if (!state.roomUuid) return;
+      const existing = findFavoriteRoom(state.roomUuid);
+      const aliasValue = prompt('Alias pokoju:', existing ? existing.alias : fallbackRoomAlias(state.roomUuid));
+      if (aliasValue == null) return;
+      upsertFavoriteRoom(state.roomUuid, aliasValue, state.myName);
+      updateFavoriteRoomButton();
+      renderFavorites();
+    });
+  }
+
+  if (clearFavoritesBtn) {
+    clearFavoritesBtn.addEventListener('click', () => {
+      if (!confirm('Usunąć wszystkie ulubione pokoje?')) return;
+      saveFavoriteRooms([]);
+      renderFavorites();
+      updateFavoriteRoomButton();
+    });
+  }
+
   copyLinkBtn.addEventListener('click', async () => {
     const url = window.location.href;
     try {
@@ -1006,6 +1180,9 @@
     const initialDeck = resolveDeckById(initialDeckId) || cloneDeck(builtinDecks[0]);
     setActiveDeck(initialDeck);
     route();
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js').catch(() => {});
+    }
   });
 })();
 

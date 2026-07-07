@@ -4,6 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Scrumpy</title>
+    <meta name="theme-color" content="#0b0d10" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -12,6 +15,7 @@
         <div class="brand">🍏 Scrumpy</div>
         <div id="roomHeader" class="room-header" hidden>
           <input id="roomIdInput" class="room-id" readonly />
+          <button id="favoriteRoomBtn" class="secondary">Dodaj do ulubionych</button>
           <button id="copyRoomBtn" class="secondary">Kopiuj numer</button>
           <button id="copyLinkBtn" class="secondary">Kopiuj link</button>
           <button id="exitBtn" class="link">Wyjdź</button>
@@ -65,6 +69,13 @@
             </div>
           </form>
           <small class="field-hint">Minimum dwie karty. Wartość może być dowolnym znakiem UTF-8.</small>
+        </article>
+        <article id="favoritesPanel" hidden>
+          <div class="row space-between center wrap gap">
+            <h2>Ulubione pokoje</h2>
+            <button id="clearFavoritesBtn" type="button" class="secondary small">Wyczyść listę</button>
+          </div>
+          <div id="favoritesList" class="favorites-list"></div>
         </article>
       </section>
 

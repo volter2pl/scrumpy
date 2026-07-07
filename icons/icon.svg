@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Scrumpy">
+  <rect width="512" height="512" rx="96" fill="#0b0d10"/>
+  <circle cx="256" cy="278" r="142" fill="#7aa2ff"/>
+  <path d="M256 124c24-52 66-82 126-90 7 62-22 106-87 132" fill="#22c55e"/>
+  <path d="M238 109c4-30 16-57 37-82" fill="none" stroke="#e8ebf0" stroke-width="28" stroke-linecap="round"/>
+  <path d="M174 275h164M196 335h120" fill="none" stroke="#0b0d10" stroke-width="36" stroke-linecap="round"/>
+</svg>

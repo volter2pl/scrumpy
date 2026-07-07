@@ -143,3 +143,25 @@ button.small { padding: 6px 10px; font-size: .9rem; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 #roomView { position: relative; }
+
+.favorites-list { display: flex; flex-direction: column; gap: 8px; }
+.favorite-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--input-bg);
+}
+.favorite-details { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.favorite-details strong { overflow-wrap: anywhere; }
+.favorite-details small { color: var(--muted); overflow-wrap: anywhere; }
+.favorite-actions { justify-content: flex-end; }
+
+@media (max-width: 680px) {
+  .room-header { flex-wrap: wrap; justify-content: flex-end; }
+  .favorite-item { align-items: stretch; flex-direction: column; }
+  .favorite-actions { justify-content: flex-start; }
+}

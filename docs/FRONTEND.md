@@ -7,6 +7,7 @@ Odwołania do kontraktu zdarzeń i kanałów znajdują się w DEV.md.
 ## Założenia
 - Jedna strona: `index.html` + lekki `styles.css` + prosta logika `index.js` (lub inline `<script>`).
 - Brak kompilacji: używamy `<script src="...">` z CDN (Supabase JS, opcjonalnie drobny polyfill).
+- Dane lokalne użytkownika (`localStorage`): wybrana talia, własna talia, ustawienia pokoju i lista ulubionych pokoi z aliasami i imieniem użytkownika.
 - Konfiguracja: mały plik `config.js` ustawiający globalne wartości `window.ENV = { SUPABASE_URL, SUPABASE_ANON_KEY }` (utwórz na podstawie `config.js.example`).
 - Routing: tylko hash w URL (`#/room/<uuid>`), aby uniknąć serwerowej konfiguracji i .htaccess.
 - Język UI: PL (spójny z README/DEV).
@@ -23,11 +24,12 @@ Odwołania do kontraktu zdarzeń i kanałów znajdują się w DEV.md.
 ## Układ strony (propozycja)
 - Pasek górny (header):
   - Logo/nazwa.
-  - W trybie pokoju: wyświetlany `UUID` pokoju oraz przycisk „Kopiuj link”.
+  - W trybie pokoju: wyświetlany `UUID` pokoju, dodanie pokoju do ulubionych z aliasem oraz przycisk „Kopiuj link”.
 - Sekcja treści (main):
   - Widok „Strona główna”:
     - Karta „Utwórz pokój”: przycisk „Utwórz pokój” → modal/formularz z imieniem.
     - Karta „Dołącz do pokoju”: pole `UUID` + pole `Imię` + przycisk „Dołącz”.
+    - Lista ulubionych pokoi: widoczna tylko na stronie głównej, przechowywana w `localStorage`, z aliasem, imieniem użytkownika i akcjami „Dołącz”, „Alias”, „Usuń”.
   - Widok „Pokój”:
     - Lista uczestników (jeden pod drugim) z mini‑kartą po prawej (•/∅ w hidden, liczba w revealed).
     - Zestaw kart do wyboru: [?, 0, 1, 2, 3, 5, 8, 13].

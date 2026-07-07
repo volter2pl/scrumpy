@@ -8,10 +8,12 @@ Scrumpy to lekka aplikacja do estymacji w stylu Planning Poker. Działa w pełni
 - Tworzenie pokoju i dołączanie po UUID (link z hashem).
 - Lista uczestników na żywo (presence), sygnalizacja oddanych głosów.
 - Talia: wybór z listy lub własna talia kart.
+- Ulubione pokoje z aliasami i imieniem użytkownika zapisane lokalnie w przeglądarce.
 - Odsłanianie „Pokaż” i reset „Wyczyść” (z potwierdzeniem).
 - Zmiana głosu także po odsłonięciu (brak historii).
 - Konfetti przy pełnej zgodności po odsłonięciu.
 - Overlay „Łączenie…” blokujący UI bez połączenia.
+- Manifest i service worker dla instalacji jako PWA.
 
 ## Szybki start (lokalnie)
 1) Skopiuj `config.js.example` do `config.js` i uzupełnij wartości Supabase.
