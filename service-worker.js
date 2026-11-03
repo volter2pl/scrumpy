@@ -1,4 +1,4 @@
-const CACHE_NAME = 'scrumpy-static-v1';
+const CACHE_NAME = 'scrumpy-static-v2';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -28,6 +28,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Network first: always try a fresh copy, fall back to cache only when offline.
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
@@ -36,14 +37,19 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.endsWith('/config.js')) return;
 
+  // Revalidate assets past the HTTP cache (GitHub Pages sends max-age=600).
+  // Navigations keep their own request so redirects (e.g. /scrumpy -> /scrumpy/) still work.
+  const fresh = request.mode === 'navigate' ? fetch(request) : fetch(request, { cache: 'no-cache' });
+
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+    fresh
+      .then((response) => {
+        if (response.ok && response.type === 'basic') {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        }
         return response;
-      });
-    })
+      })
+      .catch(() => caches.match(request).then((cached) => cached || Response.error()))
   );
 });
